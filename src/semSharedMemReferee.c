@@ -136,16 +136,17 @@ int main (int argc, char *argv[])
  *
  */
 static void arrive ()
-{
-    if (semDown (semgid, sh->mutex) == -1) {                                                      /* enter critical region */
+{   
+    if (semDown (semgid, sh->mutex) == -1)  {                                                     /* enter critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
+    
+    sh->fSt.st.refereeStat = ARRIVINGR;
+    saveState(nFic, &sh->fSt);
 
-    /* TODO: insert your code here */
-
-    if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
-        perror ("error on the up operation for semaphore access (RF)");
+    if (semUp (semgid, sh->mutex) == -1) {                                                         /* exit critical region */
+        perror ("error on the down operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
     
@@ -167,7 +168,6 @@ static void waitForTeams ()
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
     sh->fSt.st.refereeStat = WAITING_TEAMS;
     saveState(nFic, &sh->fSt);
 
@@ -175,8 +175,13 @@ static void waitForTeams ()
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-
-    /* TODO: insert your code here */
+    
+    /* Wait for 2 teams */
+    for (int i = 0; i < 2 ;i++) {
+        if (semDown(semgid, sh->refereeWaitTeams) == -1) {
+            perror("error on down: refereeWaitTeams (RF)");
+        }
+    }
 
 }
 
@@ -194,14 +199,21 @@ static void startGame ()
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
+    sh->fSt.st.refereeStat = STARTING_GAME;
+    saveState(nFic, &sh->fSt);
 
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-
-    /* TODO: insert your code here */
+    
+    /* Notifies all waiting players to start playing */
+    int totalPlayers = 2 * (NUMTEAMGOALIES + NUMTEAMPLAYERS);
+    for (int i = 0; i < totalPlayers ; i++) {
+        if (semUp(semgid, sh->playersWaitReferee) == -1) {
+            perror("error on up: refereeWaitTeams (RF)");
+        }
+    }
 
 }
 
@@ -218,9 +230,10 @@ static void play ()
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-
-    /* TODO: insert your code here */
-
+    
+    sh->fSt.st.refereeStat = REFEREEING;
+    saveState(nFic, &sh->fSt);
+    
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
@@ -238,18 +251,25 @@ static void play ()
  */
 static void endGame ()
 {
-    if (semDown (semgid, sh->mutex) == -1) {                                                      /* enter critical region */
+    if (semDown (semgid, sh->mutex) == -1) {                                                      
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
+    sh->fSt.st.refereeStat = ENDING_GAME;
+    saveState(nFic,&sh->fSt);
 
-    if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
+    if (semUp (semgid, sh->mutex) == -1) {                                                       
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-
-    /* TODO: insert your code here */
+    
+    /* Notifies all playing players to stop playing */
+    int totalPlayers = 2 * (NUMTEAMGOALIES + NUMTEAMPLAYERS);
+    for (int i = 0; i < totalPlayers ; i++) {
+        if (semUp(semgid, sh->playersWaitEnd) == -1) {
+            perror("error on up: refereeWaitTeams (RF)");
+        }
+    }
 
 }
