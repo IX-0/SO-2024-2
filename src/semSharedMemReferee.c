@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
     {
         perror("error on unmapping the shared region off the process address space");
         return EXIT_FAILURE;
-        }
+    }
 
     return EXIT_SUCCESS;
 }
