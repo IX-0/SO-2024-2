@@ -176,7 +176,7 @@ static void arrive(int id)
  *
  *  \param id player id
  *
- *  \return id of player team (0 for late goalies; 1 for team 1; 2 for team 2)
+ *  \return id of player team (0 for late players; 1 for team 1; 2 for team 2)
  *
  */
 static int playerConstituteTeam(int id)
@@ -189,7 +189,39 @@ static int playerConstituteTeam(int id)
         exit(EXIT_FAILURE);
     }
 
-        /* TODO: insert your code here */
+    /* TODO: insert your code here */
+
+    int mux = 0; // this variable will be used for doing operations with semaphores later
+
+    sh->fSt.playersArrived++;
+    sh->fSt.playersFree++;
+
+    if (sh->fSt.playersArrived > 2 * NUMTEAMPLAYERS)
+    {
+        // player is late
+        sh->fSt.st.playerStat[id] = LATE;
+    }
+
+    else if (sh->fSt.playersFree >= NUMTEAMPLAYERS && sh->fSt.goaliesFree >= NUMTEAMGOALIES)
+    {
+        // player is captain
+        sh->fSt.st.playerStat[id] = FORMING_TEAM;
+
+        // update free players
+        sh->fSt.playersFree -= NUMTEAMPLAYERS;
+        sh->fSt.goaliesFree -= NUMTEAMGOALIES;
+
+        // call 3 other players and goalies
+        mux = 1;
+    }
+    else
+    {
+        // player is not captain
+        sh->fSt.st.playerStat[id] = WAITING_TEAM;
+        mux = 2;
+    }
+
+    saveState(nFic, &sh->fSt);
 
     if (semUp(semgid, sh->mutex) == -1)
     { /* exit critical region */
@@ -198,6 +230,23 @@ static int playerConstituteTeam(int id)
     }
 
     /* TODO: insert your code here */
+
+    switch (mux)
+    {
+    case 0: // player is late
+        break;
+
+    case 1: // player is captain
+
+        for (int p = 0; p < NUMTEAMPLAYERS - 1; p++)
+        {
+            if (semUp(semgid, sh->playerRegistered))
+            { /* exit critical region */
+                perror("error on the down operation for semaphore access (PL)");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
 
     return ret;
 }
