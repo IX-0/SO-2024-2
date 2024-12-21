@@ -191,8 +191,6 @@ static int playerConstituteTeam(int id)
 
     /* TODO: insert your code here */
 
-    int mux = 0; // this variable will be used for doing operations with semaphores later
-
     sh->fSt.playersArrived++;
     sh->fSt.playersFree++;
 
@@ -212,13 +210,11 @@ static int playerConstituteTeam(int id)
         sh->fSt.goaliesFree -= NUMTEAMGOALIES;
 
         // call 3 other players and goalies
-        mux = 1;
     }
     else
     {
         // player is not captain
         sh->fSt.st.playerStat[id] = WAITING_TEAM;
-        mux = 2;
     }
 
     saveState(nFic, &sh->fSt);
@@ -230,23 +226,6 @@ static int playerConstituteTeam(int id)
     }
 
     /* TODO: insert your code here */
-
-    switch (mux)
-    {
-    case 0: // player is late
-        break;
-
-    case 1: // player is captain
-
-        for (int p = 0; p < NUMTEAMPLAYERS - 1; p++)
-        {
-            if (semUp(semgid, sh->playerRegistered))
-            { /* exit critical region */
-                perror("error on the down operation for semaphore access (PL)");
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
 
     return ret;
 }
