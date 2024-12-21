@@ -61,5 +61,5 @@ run/error_RF*
 #Binaries
 run/goalie
 run/player
-run/probSemSharedMemSocc
+run/probSemSharedMemSoccerGame
 run/referee
