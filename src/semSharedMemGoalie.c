@@ -170,14 +170,16 @@ static void arrive(int id)
  */
 static int goalieConstituteTeam (int id)
 {
-    int ret = 0;
+    int ret = 0; 
 
     if (semDown (semgid, sh->mutex) == -1)  {                                                    
         perror ("error on the up operation for semaphore access (GL)");
         exit (EXIT_FAILURE);
     }
     
-    if (sh->fSt.goaliesArrived >= 2 * NUMTEAMGOALIES) {
+    sh->fSt.goaliesArrived++;
+    
+    if (sh->fSt.goaliesArrived > 2 * NUMTEAMGOALIES) {
         sh->fSt.st.goalieStat[id] = LATE;
     }
 
@@ -193,7 +195,6 @@ static int goalieConstituteTeam (int id)
         sh->fSt.goaliesFree -= NUMTEAMGOALIES - 1;
     }
     
-    sh->fSt.goaliesArrived++;
     saveState(nFic, &sh->fSt);
     
     if (semUp (semgid, sh->mutex) == -1) {                                                      
@@ -202,7 +203,7 @@ static int goalieConstituteTeam (int id)
     }
 
     switch (sh->fSt.st.goalieStat[id]) {
-        case 'W': {
+        case WAITING_TEAM: {
 
             /* Wait for captain */
             if (semDown(semgid, sh->goaliesWaitTeam) == -1) {
@@ -221,7 +222,7 @@ static int goalieConstituteTeam (int id)
             break;
         }
 
-        case 'F': {
+        case FORMING_TEAM: {
         
             /* Only 1 entity should create a team at a given time */
             if (semDown (semgid, sh->mutex) == -1)  {
@@ -267,7 +268,7 @@ static int goalieConstituteTeam (int id)
             }
 
             break;
-        }
+        } 
     }
 
     return ret;
