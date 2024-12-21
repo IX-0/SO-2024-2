@@ -151,7 +151,6 @@ static void arrive(int id)
         exit(EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
     sh->fSt.st.playerStat[id] = ARRIVING;
     saveState(nFic, &sh->fSt);
 
@@ -184,119 +183,116 @@ static int playerConstituteTeam(int id)
     int ret = 0;
 
     if (semDown(semgid, sh->mutex) == -1)
-    { /* enter critical region */
+    { 
         perror("error on the up operation for semaphore access (PL)");
         exit(EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
-
     sh->fSt.playersArrived++;
-    sh->fSt.playersFree++;
-
-    if (sh->fSt.playersArrived > 2 * NUMTEAMPLAYERS)
-    {
-        // player is late
+    
+    if (sh->fSt.playersArrived > 2 * NUMTEAMPLAYERS) {
         sh->fSt.st.playerStat[id] = LATE;
     }
 
-    else if (sh->fSt.playersFree >= NUMTEAMPLAYERS && sh->fSt.goaliesFree >= NUMTEAMGOALIES)
-    {
-        // player is captain
-        sh->fSt.st.playerStat[id] = FORMING_TEAM;
-
-        // update no. of free players
-        sh->fSt.playersFree -= NUMTEAMPLAYERS;
-        sh->fSt.goaliesFree -= NUMTEAMGOALIES;
-    }
-    else
-    {
-        // player is not captain
+    else if ((sh->fSt.goaliesFree < NUMTEAMGOALIES) 
+        | (sh->fSt.playersFree < NUMTEAMPLAYERS - 1)) {
         sh->fSt.st.playerStat[id] = WAITING_TEAM;
+        sh->fSt.playersFree++;
+    }
+
+    else {
+        sh->fSt.st.playerStat[id] = FORMING_TEAM;
+        sh->fSt.playersFree -= NUMTEAMPLAYERS - 1;
+        sh->fSt.goaliesFree -= NUMTEAMGOALIES;
     }
 
     saveState(nFic, &sh->fSt);
 
     if (semUp(semgid, sh->mutex) == -1)
-    { /* exit critical region */
+    { 
         perror("error on the down operation for semaphore access (PL)");
         exit(EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
-
-    switch (sh->fSt.st.goalieStat[id])
+    switch (sh->fSt.st.playerStat[id])
     {
-    case WAITING_TEAM:
-        if (semDown(semgid, sh->playersWaitTeam) == -1)
+        case WAITING_TEAM: 
         {
-            perror("error on down: playersWaitTeam (PL)");
-            exit(EXIT_FAILURE);
-        }
-
-        ret = sh->fSt.teamId;
-
-        /* Confirm registration */
-        if (semUp(semgid, sh->playerRegistered) == -1)
-        {
-            perror("error on up: playerRegistered (PL)");
-            exit(EXIT_FAILURE);
-        }
-
-        break;
-    case FORMING_TEAM:
-        /* Only 1 entity should create a team at a given time */
-        if (semDown(semgid, sh->mutex) == -1)
-        {
-            perror("error on down: mutex (GL) ");
-            exit(EXIT_FAILURE);
-        }
-
-        /* Wake the other 3 players */
-        for (int i = 0; i < NUMTEAMPLAYERS - 1; i++)
-        {
-            if (semUp(semgid, sh->playersWaitTeam) == -1)
+            /* Wait for captain */
+            if (semDown(semgid, sh->playersWaitTeam) == -1)
             {
-                perror("error on up: playersWaitTeam (PL)");
+                perror("error on down: playersWaitTeam (PL)");
                 exit(EXIT_FAILURE);
             }
-        }
 
-        /* Wake the goalie */
-        for (int j = 0; j < NUMTEAMGOALIES; j++)
-        {
-            if (semUp(semgid, sh->goaliesWaitTeam) == -1)
+            ret = sh->fSt.teamId;
+
+            /* Confirm registration */
+            if (semUp(semgid, sh->playerRegistered) == -1)
             {
-                perror("error on up: goaliesWaitTeam (PL)");
+                perror("error on up: playerRegistered (PL)");
                 exit(EXIT_FAILURE);
             }
+
+            break;
         }
 
-        /* Register all other team members */
-        for (int h = 0; h < NUMTEAMPLAYERS + NUMTEAMGOALIES - 1; h++)
+        case FORMING_TEAM: 
         {
-            if (semDown(semgid, sh->playerRegistered) == -1)
+            /* Only 1 entity should create a team at a given time */
+            if (semDown(semgid, sh->mutex) == -1)
             {
-                perror("error on down: playerRegistered (PL)");
+                perror("error on down: mutex (PL) ");
                 exit(EXIT_FAILURE);
             }
-        }
 
-        ret = sh->fSt.teamId++;
+            /* Pick players */
+            for (int i = 0; i < NUMTEAMPLAYERS - 1; i++) 
+            {
+                if (semUp(semgid, sh->playersWaitTeam) == -1)
+                {
+                    perror("error on up: playersWaitTeam (PL)");
+                    exit(EXIT_FAILURE);
+                }
+            }
 
-        if (semUp(semgid, sh->mutex) == -1)
-        {
-            perror("error on up: mutex (PL) ");
-            exit(EXIT_FAILURE);
-        }
+            /* Pick goalies */
+            for (int j = 0; j < NUMTEAMGOALIES; j++)
+            {
+                if (semUp(semgid, sh->goaliesWaitTeam) == -1)
+                {
+                    perror("error on up: goaliesWaitTeam (PL)");
+                    exit(EXIT_FAILURE);
+                }
+            }
 
-        /* Notify referee of team creation */
-        if (semUp(semgid, sh->refereeWaitTeams) == -1)
-        {
-            perror("error on up: refereeWaitTeams (PL)");
-            exit(EXIT_FAILURE);
+            /* Wait for registration acknowledgement */
+            for (int h = 0; h < NUMTEAMPLAYERS + NUMTEAMGOALIES - 1; h++)
+            {
+                if (semDown(semgid, sh->playerRegistered) == -1)
+                {
+                    perror("error on down: playerRegistered (PL)");
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            ret = sh->fSt.teamId++;
+
+            if (semUp(semgid, sh->mutex) == -1)
+            {
+                perror("error on up: mutex (PL) ");
+                exit(EXIT_FAILURE);
+            }
+
+            /* Notify referee of team creation */
+            if (semUp(semgid, sh->refereeWaitTeams) == -1)
+            {
+                perror("error on up: refereeWaitTeams (PL)");
+                exit(EXIT_FAILURE);
+            }
+            break;
+
         }
-        break;
     }
     return ret;
 }
