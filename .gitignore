@@ -50,3 +50,16 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+#------------------- PROJECT SPECIFIC --------------------
+
+#Logging files
+run/error_GL*
+run/error_PL*
+run/error_RF*
+
+#Binaries
+run/goalie
+run/player
+run/probSemSharedMemSocc
+run/referee
