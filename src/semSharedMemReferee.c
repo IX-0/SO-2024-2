@@ -196,7 +196,7 @@ static void startGame ()
 {
     if (semDown (semgid, sh->mutex) == -1) {                                                      /* enter critical region */
         perror ("error on the up operation for semaphore access (RF)");
-        exit (EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     sh->fSt.st.refereeStat = STARTING_GAME;
@@ -204,14 +204,24 @@ static void startGame ()
 
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
-        exit (EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     
-    /* Notifies all waiting players to start playing */
     int totalPlayers = 2 * (NUMTEAMGOALIES + NUMTEAMPLAYERS);
+    
+    /* Notifies all waiting players to start playing */
     for (int i = 0; i < totalPlayers ; i++) {
         if (semUp(semgid, sh->playersWaitReferee) == -1) {
             perror("error on up: refereeWaitTeams (RF)");
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    /* Waits for all players to start playing */
+    for (int j = 0; j < totalPlayers ; j++) {
+        if (semDown(semgid, sh->playing) == -1) {
+            perror("error on down: playing (RF)");
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -264,11 +274,13 @@ static void endGame ()
         exit (EXIT_FAILURE);
     }
     
-    /* Notifies all playing players to stop playing */
     int totalPlayers = 2 * (NUMTEAMGOALIES + NUMTEAMPLAYERS);
+    
+    /* Notifies all playing players to stop playing */
     for (int i = 0; i < totalPlayers ; i++) {
         if (semUp(semgid, sh->playersWaitEnd) == -1) {
             perror("error on up: refereeWaitTeams (RF)");
+            exit(EXIT_FAILURE);
         }
     }
 

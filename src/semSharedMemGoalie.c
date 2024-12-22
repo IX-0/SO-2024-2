@@ -329,7 +329,16 @@ static void playUntilEnd (int id, int team)
         exit (EXIT_FAILURE);
     }
 
-    if (semDown(semgid, sh->playersWaitEnd) == -1) {
+    /* Notify referee */
+    if (semUp(semgid, sh->playing) == -1)
+    {
+        perror("error on up: playing (GL)");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Block until referee ends game */
+    if (semDown(semgid, sh->playersWaitEnd) == -1)
+    {
         perror("error on down: playersWaitEnd (GL)");
         exit(EXIT_FAILURE);
     }

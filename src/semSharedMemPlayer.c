@@ -314,8 +314,6 @@ static void waitReferee(int id, int team)
         exit(EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
-
     sh->fSt.st.playerStat[id] = (team == 1) ? WAITING_START_1 : WAITING_START_2;
     saveState(nFic, &sh->fSt);
 
@@ -324,8 +322,6 @@ static void waitReferee(int id, int team)
         perror("error on the down operation for semaphore access (PL)");
         exit(EXIT_FAILURE);
     }
-
-    /* TODO: insert your code here */
 
     if (semDown(semgid, sh->playersWaitReferee) == -1)
     {
@@ -351,8 +347,6 @@ static void playUntilEnd(int id, int team)
         exit(EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
-
     sh->fSt.st.playerStat[id] = (team == 1) ? PLAYING_1 : PLAYING_2;
     saveState(nFic, &sh->fSt);
 
@@ -361,9 +355,15 @@ static void playUntilEnd(int id, int team)
         perror("error on the down operation for semaphore access (PL)");
         exit(EXIT_FAILURE);
     }
+    
+    /* Notify referee */
+    if (semUp(semgid, sh->playing) == -1)
+    {
+        perror("error on up: playing (PL)");
+        exit(EXIT_FAILURE);
+    }
 
-    /* TODO: insert your code here */
-
+    /* Block until referee ends game */
     if (semDown(semgid, sh->playersWaitEnd) == -1)
     {
         perror("error on down: playersWaitEnd (PL)");
